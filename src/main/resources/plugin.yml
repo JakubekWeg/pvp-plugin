@@ -1,0 +1,4 @@
+name: PvpPlugin
+version: ${project.version}
+main: jwegrzyn.pvp.Pvp
+api-version: 1.16
