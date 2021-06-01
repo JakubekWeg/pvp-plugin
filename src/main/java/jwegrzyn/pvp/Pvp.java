@@ -1,6 +1,8 @@
 package jwegrzyn.pvp;
 
 import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
@@ -18,6 +20,8 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 import org.jetbrains.annotations.NotNull;
@@ -108,7 +112,7 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
                     this.playersPreferences.put(key, preferencesSection.getString(key, null));
                 }
             }
-        } catch (FileNotFoundException e){
+        } catch (FileNotFoundException e) {
             // ignore
         } catch (Exception e) {
             e.printStackTrace();
@@ -119,15 +123,40 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
     private void eventHandler(PlayerDeathEvent event) {
         final Player player = event.getEntity();
         if (!pvpTeam.hasEntry(player.getName())) return;
-        player.setBedSpawnLocation(player.getLocation().add(0, 1, 0), true);
+        final Location location = player.getLocation();
+        player.getWorld().strikeLightningEffect(location);
+        player.setGameMode(GameMode.SPECTATOR);
+        player.setBedSpawnLocation(location.add(0, 1, 0), true);
         event.setDroppedExp(0);
         event.getDrops().clear();
+
+        final Collection<? extends Player> players = getServer().getOnlinePlayers();
+        if (players.size() == 2) {
+            // heal others
+            for (Player other : players) {
+                if (other != player) {
+                    other.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 40, 5, true, false, false));
+                    other.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, 40, 5, true, false, false));
+                    other.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 1, true, false, false));
+                    final double health = other.getHealth();
+                    getServer().broadcastMessage(other.getDisplayName() + " was on " + ChatColor.DARK_PURPLE + (Math.round(health / 2 * 100) / 100) + ChatColor.RESET + " hp");
+                }
+            }
+        }
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     private void eventHandler(PlayerRespawnEvent event) {
         final Player player = event.getPlayer();
         if (!pvpTeam.hasEntry(player.getName())) return;
+        if (player.getGameMode() == GameMode.SPECTATOR) {
+            getServer().getScheduler().runTaskLater(this, () -> {
+                final Location location = player.getBedSpawnLocation();
+                if (location != null)
+                    player.teleport(location);
+                player.setGameMode(GameMode.SURVIVAL);
+            }, 5 * 20);
+        }
         this.applyToPlayer(player, playersPreferences.get(player.getName()));
     }
 
