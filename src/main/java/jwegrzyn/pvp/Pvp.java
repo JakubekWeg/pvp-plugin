@@ -1,36 +1,41 @@
 package jwegrzyn.pvp;
 
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
+import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.util.NumberConversions;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
 
 @SuppressWarnings("unused")
-public final class Pvp extends JavaPlugin {
+public final class Pvp extends JavaPlugin implements @NotNull Listener {
 
     private static final String CONFIG_FILE_NAME = "pvp-profiles";
     private final Map<String, Kit> kits = new HashMap<>();
     private final Map<String, String> playersPreferences = new HashMap<>();
+    private Team pvpTeam;
 
-    private static class Kit implements ConfigurationSerializable {
+    public static class Kit implements ConfigurationSerializable {
 
         private final List<ItemStack> items;
 
@@ -42,7 +47,7 @@ public final class Pvp extends JavaPlugin {
             int size = inventory.getSize();
             ArrayList<ItemStack> items = new ArrayList<>(size);
             for (int i = 0; i < size; i++) {
-                ItemStack item = inventory.getItem(size);
+                ItemStack item = inventory.getItem(i);
                 if (item != null)
                     items.add(item.clone());
                 else
@@ -52,15 +57,18 @@ public final class Pvp extends JavaPlugin {
         }
 
         public void applyToInventory(@NotNull PlayerInventory inventory) {
+            inventory.clear();
             for (int i = 0, size = items.size(); i < size; i++) {
-                inventory.setItem(i, this.items.get(i).clone());
+                final ItemStack stack = this.items.get(i);
+                if (stack != null)
+                    inventory.setItem(i, stack.clone());
             }
         }
 
         @Override
         public @NotNull Map<String, Object> serialize() {
             HashMap<String, Object> map = new HashMap<>();
-            map.put("items", items);
+            map.put("items", this.items);
             return map;
         }
 
@@ -74,13 +82,24 @@ public final class Pvp extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        final Scoreboard mainScoreboard = Objects
+                .requireNonNull(getServer().getScoreboardManager())
+                .getMainScoreboard();
+
+        pvpTeam = mainScoreboard.getTeam("pvp");
+        if (pvpTeam == null)
+            pvpTeam = mainScoreboard.registerNewTeam("pvp");
+
+        ConfigurationSerialization.registerClass(Kit.class);
+        this.getServer().getPluginManager().registerEvents(this, this);
+
         try {
             FileConfiguration config = getConfig();
             config.load(CONFIG_FILE_NAME);
             final ConfigurationSection kitsSection = config.getConfigurationSection("kits");
             if (kitsSection != null) {
                 for (String key : kitsSection.getKeys(false)) {
-                    this.kits.put(key, (Kit) kitsSection.get(key));
+                    this.kits.put(key, kitsSection.getObject(key, Kit.class));
                 }
             }
             final ConfigurationSection preferencesSection = config.getConfigurationSection("preferences");
@@ -89,9 +108,27 @@ public final class Pvp extends JavaPlugin {
                     this.playersPreferences.put(key, preferencesSection.getString(key, null));
                 }
             }
-        } catch (Exception e) {
+        } catch (FileNotFoundException e){
             // ignore
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    private void eventHandler(PlayerDeathEvent event) {
+        final Player player = event.getEntity();
+        if (!pvpTeam.hasEntry(player.getName())) return;
+        player.setBedSpawnLocation(player.getLocation().add(0, 1, 0), true);
+        event.setDroppedExp(0);
+        event.getDrops().clear();
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+    private void eventHandler(PlayerRespawnEvent event) {
+        final Player player = event.getPlayer();
+        if (!pvpTeam.hasEntry(player.getName())) return;
+        this.applyToPlayer(player, playersPreferences.get(player.getName()));
     }
 
     @Override
@@ -155,6 +192,8 @@ public final class Pvp extends JavaPlugin {
                                 return false;
                             }
                             this.playersPreferences.put(sender.getName(), args[1]);
+                            if (sender instanceof Player)
+                                applyToPlayer(((Player) sender), args[1]);
                             sender.sendMessage(ChatColor.GREEN + "Kit assigned");
                             return true;
                         }
@@ -201,18 +240,26 @@ public final class Pvp extends JavaPlugin {
     private void applyToPlayer(@Nullable Player player,
                                @Nullable String kitName) {
         if (player == null) return;
-        if (kitName == null) return;
+        if (kitName == null) {
+            player.sendMessage(ChatColor.LIGHT_PURPLE + "Please select your kit using /pvp-kit use <name>");
+            return;
+        }
         final Kit kit = this.kits.get(kitName);
-        if (kit == null) return;
+        if (kit == null) {
+            player.sendMessage(ChatColor.LIGHT_PURPLE + "You kit cannot be found, use a different one");
+            return;
+        }
         final PlayerInventory inventory = player.getInventory();
-        inventory.clear();
         kit.applyToInventory(inventory);
     }
 
     @Override
     public void onDisable() {
         try {
-            getConfig().save(CONFIG_FILE_NAME);
+            final FileConfiguration config = getConfig();
+            config.createSection("kits", this.kits);
+            config.createSection("preferences", this.playersPreferences);
+            config.save(CONFIG_FILE_NAME);
         } catch (IOException e) {
             e.printStackTrace();
         }
