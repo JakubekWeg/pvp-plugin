@@ -161,6 +161,7 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
                 player.addPotionEffect(new PotionEffect(PotionEffectType.FAST_DIGGING, 60, 10, true, false, false));
             }, 5 * 20);
         }
+        this.applyToPlayer(player, playersPreferences.get(player.getName()));
     }
 
     @Override
