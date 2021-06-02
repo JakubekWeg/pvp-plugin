@@ -132,9 +132,9 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
 
         final Collection<? extends Player> players = getServer().getOnlinePlayers();
         if (players.size() == 2) {
-            // heal others
+            // heal other player
             for (Player other : players) {
-                if (other != player) {
+                if (other != player && pvpTeam.hasEntry(other.getName())) {
                     other.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 40, 5, true, false, false));
                     other.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, 40, 5, true, false, false));
                     other.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 1, true, false, false));
@@ -155,9 +155,12 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
                 if (location != null)
                     player.teleport(location);
                 player.setGameMode(GameMode.SURVIVAL);
+                player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 20, 1, true, false, false));
+                player.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 60, 255, true, false, false));
+                player.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 60, 1, true, false, false));
+                player.addPotionEffect(new PotionEffect(PotionEffectType.FAST_DIGGING, 60, 10, true, false, false));
             }, 5 * 20);
         }
-        this.applyToPlayer(player, playersPreferences.get(player.getName()));
     }
 
     @Override
@@ -275,7 +278,7 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
         }
         final Kit kit = this.kits.get(kitName);
         if (kit == null) {
-            player.sendMessage(ChatColor.LIGHT_PURPLE + "You kit cannot be found, use a different one");
+            player.sendMessage(ChatColor.LIGHT_PURPLE + "Your kit cannot be found, use a different one");
             return;
         }
         final PlayerInventory inventory = player.getInventory();
