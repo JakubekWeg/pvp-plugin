@@ -139,7 +139,7 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
                     other.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, 40, 5, true, false, false));
                     other.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 1, true, false, false));
                     final double health = other.getHealth();
-                    getServer().broadcastMessage(other.getDisplayName() + " was on " + ChatColor.DARK_PURPLE + (Math.round(health / 2 * 100) / 100) + ChatColor.RESET + " hp");
+                    getServer().broadcastMessage(String.format("%s was on %s%.2f%s hp", other.getDisplayName(), ChatColor.DARK_PURPLE, health, ChatColor.RESET));
                 }
             }
         }
@@ -169,7 +169,7 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
                                       @NotNull Command command,
                                       @NotNull String alias,
                                       String[] args) {
-        if ("pvp-kit".equals(command.getName())) {
+        if ("select-kit".equals(command.getName())) {
             switch (args.length) {
                 case 0:
                 case 1:
@@ -186,7 +186,7 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if ("pvp-kit".equals(command.getName())) {
+        if ("select-kit".equals(command.getName())) {
             switch (args.length) {
                 case 0:
                     sender.sendMessage(ChatColor.RED + "Missing action word");

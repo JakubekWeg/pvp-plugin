@@ -3,6 +3,6 @@ version: ${project.version}
 main: jwegrzyn.pvp.Pvp
 api-version: 1.16
 commands:
-  pvp-kit:
+  select-kit:
     description: Manages pvp plugin kits
-    usage: /pvp-kit (use|add|remove|list)
+    usage: /select-kit (use|add|remove|list)
