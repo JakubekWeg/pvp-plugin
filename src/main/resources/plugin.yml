@@ -2,6 +2,10 @@ name: PvpPlugin
 version: ${project.version}
 main: jwegrzyn.pvp.Pvp
 api-version: 1.16
+website: https://github.com/JakubekWeg/pvp-plugin
+author: Jakub Węgrzyn
+authors:
+  - Jakub Węgrzyn
 commands:
   select-kit:
     description: Manages pvp plugin kits
