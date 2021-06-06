@@ -93,6 +93,8 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
         pvpTeam = mainScoreboard.getTeam("pvp");
         if (pvpTeam == null)
             pvpTeam = mainScoreboard.registerNewTeam("pvp");
+        pvpTeam.setColor(ChatColor.DARK_RED);
+        pvpTeam.setPrefix("pvp ");
 
         ConfigurationSerialization.registerClass(Kit.class);
         this.getServer().getPluginManager().registerEvents(this, this);
@@ -169,6 +171,9 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
                                       @NotNull Command command,
                                       @NotNull String alias,
                                       String[] args) {
+        if (!pvpTeam.hasEntry(sender.getName()))
+            return null;
+
         if ("select-kit".equals(command.getName())) {
             switch (args.length) {
                 case 0:
@@ -186,21 +191,31 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        if (!pvpTeam.hasEntry(sender.getName())) {
+            sender.sendMessage(ChatColor.RED + "You are not a member of " + ChatColor.DARK_PURPLE + "pvp" + ChatColor.RED + " team!");
+            if (sender.isOp()) {
+                sender.sendMessage("You can add self by using " + ChatColor.DARK_PURPLE + "/team join pvp @s");
+            } else {
+                sender.sendMessage("Ask a server operator to make you a member");
+            }
+            return true;
+        }
+
         if ("select-kit".equals(command.getName())) {
             switch (args.length) {
                 case 0:
                     sender.sendMessage(ChatColor.RED + "Missing action word");
-                    return false;
+                    return true;
                 default:
                     sender.sendMessage(ChatColor.RED + "Too many arguments");
-                    return false;
+                    return true;
                 case 1:
                     switch (args[0]) {
                         case "use":
                         case "add":
                         case "remove":
                             sender.sendMessage(ChatColor.RED + "Missing kit name");
-                            return false;
+                            return true;
                         case "list":
                             final Collection<String> values = kits.keySet();
                             if (values.isEmpty())
@@ -214,7 +229,7 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
                             return true;
                         default:
                             sender.sendMessage(ChatColor.RED + "Unknown action");
-                            return false;
+                            return true;
                     }
                 case 2:
                     switch (args[0]) {
@@ -222,7 +237,7 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
                             final Kit kit = kits.get(args[1]);
                             if (kit == null) {
                                 sender.sendMessage(ChatColor.RED + "Kit with this name doesn't exist");
-                                return false;
+                                return true;
                             }
                             this.playersPreferences.put(sender.getName(), args[1]);
                             if (sender instanceof Player)
@@ -233,16 +248,16 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
                         case "add": {
                             if (kits.containsKey(args[1])) {
                                 sender.sendMessage(ChatColor.RED + "Kit with this name already exists");
-                                return false;
+                                return true;
                             }
                             if (!(sender instanceof InventoryHolder)) {
                                 sender.sendMessage(ChatColor.RED + "You doesn't contain inventory");
-                                return false;
+                                return true;
                             }
                             final Inventory inventory = ((InventoryHolder) sender).getInventory();
                             if (!(inventory instanceof PlayerInventory)) {
                                 sender.sendMessage(ChatColor.RED + "You must have player inventory");
-                                return false;
+                                return true;
                             }
                             final Kit kit = Kit.fromInventory(((PlayerInventory) inventory));
                             this.kits.put(args[1], kit);
@@ -253,17 +268,17 @@ public final class Pvp extends JavaPlugin implements @NotNull Listener {
                         case "remove":
                             if (!kits.containsKey(args[1])) {
                                 sender.sendMessage(ChatColor.RED + "Kit with this name doesn't exist");
-                                return false;
+                                return true;
                             }
                             kits.remove(args[1]);
                             sender.sendMessage(ChatColor.GREEN + "Kit removed");
                             return true;
                         case "list":
                             sender.sendMessage(ChatColor.RED + "Too many arguments");
-                            return false;
+                            return true;
                         default:
                             sender.sendMessage(ChatColor.RED + "Unknown action");
-                            return false;
+                            return true;
                     }
             }
         }
